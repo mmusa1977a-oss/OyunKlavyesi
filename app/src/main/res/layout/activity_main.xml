@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <WebView
+        android:id="@+id/webView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <Button
+        android:id="@+id/btnBubble"
+        android:layout_width="60dp"
+        android:layout_height="60dp"
+        android:text="🎮"
+        android:textSize="24sp"
+        android:layout_gravity="end|center_vertical" />
+
+    <LinearLayout
+        android:id="@+id/controlPanel"
+        android:layout_width="220dp"
+        android:layout_height="220dp"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:visibility="gone"
+        android:layout_gravity="start|bottom"
+        android:padding="10dp">
+
+        <Button
+            android:id="@+id/btnUp"
+            android:layout_width="80dp"
+            android:layout_height="60dp"
+            android:text="↑"
+            android:textSize="28sp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="70dp"
+            android:gravity="center"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/btnLeft"
+                android:layout_width="70dp"
+                android:layout_height="60dp"
+                android:text="←"
+                android:textSize="28sp" />
+
+            <Button
+                android:id="@+id/btnDown"
+                android:layout_width="70dp"
+                android:layout_height="60dp"
+                android:text="↓"
+                android:textSize="28sp" />
+
+            <Button
+                android:id="@+id/btnRight"
+                android:layout_width="70dp"
+                android:layout_height="60dp"
+                android:text="→"
+                android:textSize="28sp" />
+
+        </LinearLayout>
+
+        <Button
+            android:id="@+id/btnSpace"
+            android:layout_width="160dp"
+            android:layout_height="60dp"
+            android:text="SPACE"
+            android:textSize="18sp" />
+
+    </LinearLayout>
+
+</FrameLayout>
