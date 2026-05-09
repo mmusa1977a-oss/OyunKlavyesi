@@ -4,7 +4,7 @@
 
     <application
         android:label="Oyun Klavyesi"
-        android:theme="@style/Theme.AppCompat.Light.NoActionBar"
+        android:theme="@style/AppTheme"
         android:usesCleartextTraffic="true">
 
         <activity
