@@ -5,65 +5,59 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
-public class Level {
+public class DuneLevel {
     public final int levelNo;
     public final float length;
     public final int timeSeconds;
-
-    public final List<Bonus> bonuses = new ArrayList<>();
+    public final List<BonusItem> bonuses = new ArrayList<>();
     public final List<Obstacle> obstacles = new ArrayList<>();
     public final List<Checkpoint> checkpoints = new ArrayList<>();
 
     private final Random random = new Random();
 
-    public Level(int levelNo) {
+    public DuneLevel(int levelNo) {
         this.levelNo = Math.max(1, levelNo);
-        this.length = 7800 + this.levelNo * 1550;
+        this.length = 7600 + this.levelNo * 1450;
         this.timeSeconds = Math.max(120, 245 - this.levelNo * 8);
         generate();
     }
 
     private void generate() {
-        random.setSeed(9000L + levelNo * 131L);
+        random.setSeed(1515L + levelNo * 91L);
 
-        for (int i = 0; i < 42 + levelNo * 5; i++) {
-            float x = 520 + i * 215 + random.nextInt(130);
-            bonuses.add(new Bonus(x, getGroundY(x) - 130 - random.nextInt(120), Bonus.STAR));
+        for (int i = 0; i < 45 + levelNo * 4; i++) {
+            float x = 520 + i * 220 + random.nextInt(110);
+            bonuses.add(new BonusItem(x, getGroundY(x) - 135 - random.nextInt(115), BonusItem.STAR));
         }
 
         for (int i = 0; i < 4 + levelNo; i++) {
-            float x = 1150 + i * 1150 + random.nextInt(260);
-            bonuses.add(new Bonus(x, getGroundY(x) - 105, Bonus.REPAIR));
+            float x = 1200 + i * 1100 + random.nextInt(260);
+            bonuses.add(new BonusItem(x, getGroundY(x) - 110, BonusItem.REPAIR));
         }
 
         for (int i = 0; i < 2 + levelNo / 2; i++) {
-            float x = 1750 + i * 1650 + random.nextInt(420);
-            bonuses.add(new Bonus(x, getGroundY(x) - 115, Bonus.BIG));
+            float x = 1900 + i * 1650 + random.nextInt(420);
+            bonuses.add(new BonusItem(x, getGroundY(x) - 115, BonusItem.BIG));
         }
 
         for (int i = 0; i < 2 + levelNo / 2; i++) {
-            float x = 2350 + i * 1550 + random.nextInt(460);
-            bonuses.add(new Bonus(x, getGroundY(x) - 115, Bonus.SMALL));
+            float x = 2500 + i * 1550 + random.nextInt(420);
+            bonuses.add(new BonusItem(x, getGroundY(x) - 115, BonusItem.SMALL));
         }
 
         for (int i = 0; i < 2 + levelNo / 2; i++) {
-            float x = 3050 + i * 1700 + random.nextInt(500);
-            bonuses.add(new Bonus(x, getGroundY(x) - 115, Bonus.SLOW));
+            float x = 3150 + i * 1700 + random.nextInt(420);
+            bonuses.add(new BonusItem(x, getGroundY(x) - 115, BonusItem.SLOW));
         }
 
-        for (int i = 0; i < 2 + levelNo / 3; i++) {
-            float x = 3900 + i * 1850 + random.nextInt(500);
-            bonuses.add(new Bonus(x, getGroundY(x) - 110, Bonus.WHEEL));
-        }
-
-        for (int i = 0; i < 5 + levelNo; i++) {
-            float x = 1500 + i * 980 + random.nextInt(300);
-            bonuses.add(new Bonus(x, getGroundY(x) - 105, Bonus.MINUS));
+        for (int i = 0; i < 4 + levelNo; i++) {
+            float x = 1550 + i * 1050 + random.nextInt(300);
+            bonuses.add(new BonusItem(x, getGroundY(x) - 105, BonusItem.MINUS));
         }
 
         for (int i = 0; i < 8 + levelNo * 2; i++) {
-            float x = 950 + i * 760 + random.nextInt(320);
-            obstacles.add(new Obstacle(x, getGroundY(x) - 20, 30 + random.nextInt(16)));
+            float x = 1000 + i * 760 + random.nextInt(300);
+            obstacles.add(new Obstacle(x, getGroundY(x) - 22, 28 + random.nextInt(20)));
         }
 
         checkpoints.add(new Checkpoint(length / 3f, false));
@@ -72,30 +66,27 @@ public class Level {
     }
 
     public float getGroundY(float x) {
-        float base = 525
-                + (float)Math.sin(x * (0.0068f + levelNo * 0.00035f)) * 80
-                + (float)Math.sin(x * 0.016f) * 46
-                + (float)Math.sin(x * 0.039f) * 17;
+        float y = 525
+                + (float)Math.sin(x * (0.0065f + levelNo * 0.00035f)) * 82
+                + (float)Math.sin(x * 0.0155f) * 48
+                + (float)Math.sin(x * 0.038f) * 18;
 
-        float ramp = 0;
-        ramp += rampWave(x, 950, 360, -85);
-        ramp += rampWave(x, 1850, 430, 95);
-        ramp += rampWave(x, 3050, 480, -110);
-        ramp += rampWave(x, 4550, 520, 115);
-        ramp += rampWave(x, 6100, 500, -95);
-        return base + ramp;
+        y += ramp(x, 900, 350, -90);
+        y += ramp(x, 1780, 440, 95);
+        y += ramp(x, 3060, 500, -115);
+        y += ramp(x, 4620, 540, 120);
+        y += ramp(x, 6250, 520, -105);
+        return y;
     }
 
-    private float rampWave(float x, float start, float width, float height) {
+    private float ramp(float x, float start, float width, float height) {
         float t = (x - start) / width;
         if (t < 0 || t > 1) return 0;
         return (float)Math.sin(t * Math.PI) * height;
     }
 
     public float getGroundAngle(float x) {
-        float y1 = getGroundY(x - 28);
-        float y2 = getGroundY(x + 28);
-        return (float)Math.toDegrees(Math.atan2(y2 - y1, 56));
+        return (float)Math.atan2(getGroundY(x + 24) - getGroundY(x - 24), 48);
     }
 
     public void drawBackground(Canvas canvas, Paint paint, float camX) {
@@ -133,33 +124,25 @@ public class Level {
 
         paint.setStyle(Paint.Style.FILL);
         paint.setColor(Color.rgb(68, 43, 20));
-
         Path ground = new Path();
         ground.moveTo(0, h);
-        for (int sx = 0; sx <= w + 30; sx += 18) {
-            float wx = camX + sx;
-            ground.lineTo(sx, getGroundY(wx));
+        for (int sx = 0; sx <= w + 30; sx += 16) {
+            ground.lineTo(sx, getGroundY(camX + sx));
         }
         ground.lineTo(w, h);
         ground.close();
         canvas.drawPath(ground, paint);
 
-        paint.setColor(Color.rgb(101, 67, 32));
-        for (int sx = 0; sx <= w; sx += 70) {
-            float wx = camX + sx;
-            float gy = getGroundY(wx);
-            canvas.drawCircle(sx, gy + 35, 9, paint);
-        }
-
         paint.setColor(Color.rgb(35, 25, 14));
+        paint.setStyle(Paint.Style.STROKE);
         paint.setStrokeWidth(5);
         Path top = new Path();
         top.moveTo(0, getGroundY(camX));
-        for (int sx = 0; sx <= w + 30; sx += 18) {
-            float wx = camX + sx;
-            top.lineTo(sx, getGroundY(wx));
+        for (int sx = 0; sx <= w + 30; sx += 16) {
+            top.lineTo(sx, getGroundY(camX + sx));
         }
         canvas.drawPath(top, paint);
+        paint.setStyle(Paint.Style.FILL);
     }
 
     public void drawObjects(Canvas canvas, Paint paint, float camX) {
@@ -173,18 +156,11 @@ public class Level {
             paint.setStrokeWidth(5);
             paint.setColor(Color.WHITE);
             canvas.drawLine(sx, gy - 150, sx, gy, paint);
-
-            paint.setStyle(Paint.Style.FILL);
             paint.setColor(c.finish ? Color.RED : Color.CYAN);
             canvas.drawRect(sx, gy - 150, sx + 46, gy - 116, paint);
-
-            paint.setColor(Color.BLACK);
-            paint.setTextSize(17);
-            paint.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.BOLD));
-            canvas.drawText(c.finish ? "FINISH" : "CHECK", sx - 10, gy - 158, paint);
         }
 
-        for (Bonus b : bonuses) b.draw(canvas, paint, camX);
+        for (BonusItem b : bonuses) b.draw(canvas, paint, camX);
 
         for (Obstacle o : obstacles) {
             float sx = o.x - camX;
@@ -197,9 +173,6 @@ public class Level {
             p.lineTo(sx + o.size, o.y + o.size * 0.7f);
             p.close();
             canvas.drawPath(p, paint);
-
-            paint.setColor(Color.rgb(85, 85, 85));
-            canvas.drawCircle(sx - 5, o.y, o.size * 0.18f, paint);
         }
     }
 
@@ -221,7 +194,6 @@ public class Level {
         public Checkpoint(float x, boolean finish) {
             this.x = x;
             this.finish = finish;
-            this.passed = false;
         }
     }
 }
