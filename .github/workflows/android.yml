@@ -3,6 +3,7 @@ name: Android CI
 on:
   push:
     branches: [ "main" ]
+  workflow_dispatch:
 
 jobs:
   build:
@@ -17,10 +18,10 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Setup Gradle 8.3
+      - name: Setup Gradle 8.7
         uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: 8.3
+          gradle-version: 8.7
 
       - name: Build APK
         run: gradle assembleDebug
@@ -28,5 +29,5 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: OyunKlavyesi-APK
+          name: Arazi-Arabasi-Yildiz-Avi-APK
           path: app/build/outputs/apk/debug/app-debug.apk
