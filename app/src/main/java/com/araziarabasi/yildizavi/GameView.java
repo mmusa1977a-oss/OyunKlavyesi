@@ -25,13 +25,13 @@ public class GameView extends SurfaceView implements Runnable {
     private int gameState = STATE_MENU;
     private int levelNo = 1;
 
-    private Level level;
-    private Car car;
+    private DuneLevel level;
+    private CParticleEngine engine;
+    private CCarSynchronizer car;
 
     private boolean gas, brake, left, right, jump;
 
     private int score = 0;
-    private int health = 10;
     private int starsCollected = 0;
     private int checkpointIndex = 0;
 
@@ -43,10 +43,14 @@ public class GameView extends SurfaceView implements Runnable {
     private long bonusTextTime = 0;
     private String bonusText = "";
 
+    private long bigUntil = 0;
+    private long smallUntil = 0;
+    private long slowUntil = 0;
+
     private RectF playBtn, howBtn, backBtn;
     private RectF gasBtn, brakeBtn, leftBtn, rightBtn, jumpBtn;
 
-    private final List<Particle> particles = new ArrayList<>();
+    private final List<DuneParticle> particles = new ArrayList<>();
 
     public GameView(Context context) {
         super(context);
@@ -56,19 +60,18 @@ public class GameView extends SurfaceView implements Runnable {
 
     private void resetLevel(int newLevel) {
         levelNo = Math.max(1, newLevel);
-        level = new Level(levelNo);
-        car = new Car(260, level);
+        level = new DuneLevel(levelNo);
+        engine = new CParticleEngine();
+        car = new CCarSynchronizer();
+        car.init(260, level.getGroundY(260) - 95, engine);
 
         score = 0;
-        health = 10;
         starsCollected = 0;
         checkpointIndex = 0;
-
         gas = brake = left = right = jump = false;
         camX = 0;
         camTargetX = 0;
-
-        lastDamageTime = 0;
+        bigUntil = smallUntil = slowUntil = 0;
         bonusText = "";
         particles.clear();
 
@@ -87,26 +90,31 @@ public class GameView extends SurfaceView implements Runnable {
     private void update() {
         if (gameState != STATE_PLAYING) return;
 
-        if (getSecondsLeft() <= 0 || health <= 0) {
+        long now = System.currentTimeMillis();
+
+        if (now > bigUntil && now > smallUntil) car.makeNormalCar();
+
+        engine.timeMultiplier = now < slowUntil ? 0.68f : 1f;
+        engine.process(level, gas, brake, jump);
+        car.process(left, right);
+
+        if (car.consumeFlipBonus()) {
+            score += 100;
+            showBonus("FLIP +100");
+        }
+
+        if (getSecondsLeft() <= 0 || car.health <= 0) {
             gameState = STATE_GAME_OVER;
             return;
         }
 
-        boolean landed = car.update(level, gas, brake, left, right, jump);
-
-        if (landed) {
-            handleLandingDamage();
-            addDust(car.x, car.y + 55, 10);
-        }
-
-        handleFlipBonus();
-        updateCheckpointAndFinish();
         collectBonuses();
         hitObstacles();
+        updateCheckpointAndFinish();
         updateParticles();
 
         if (car.y > getHeight() + 450) {
-            damageCar(4, "DÜŞTÜN");
+            damageCar(40, "DÜŞTÜN");
             respawnAtCheckpoint();
         }
 
@@ -115,40 +123,9 @@ public class GameView extends SurfaceView implements Runnable {
         camX += (camTargetX - camX) * 0.10f;
     }
 
-    private void handleLandingDamage() {
-        long now = System.currentTimeMillis();
-        if (now - lastDamageTime < 650) return;
-
-        float impact = Math.max(car.backWheel.vel.y, car.frontWheel.vel.y);
-        float a = Math.abs(normalizeAngle(car.angle));
-        int damage = 0;
-
-        if (impact > 18) damage += 3;
-        else if (impact > 13) damage += 2;
-        else if (impact > 9) damage += 1;
-
-        if (a > 145) damage += 3;
-        else if (a > 105) damage += 2;
-        else if (a > 75) damage += 1;
-
-        if (damage > 0) {
-            damageCar(damage, "-" + damage + " CAN");
-            addSparks(car.x, car.y, 20);
-        }
-    }
-
-    private void handleFlipBonus() {
-        while (Math.abs(car.airSpin) >= 360f) {
-            score += 100;
-            showBonus("FLIP +100");
-            car.airSpin += car.airSpin > 0 ? -360f : 360f;
-        }
-    }
-
     private void updateCheckpointAndFinish() {
         for (int i = 0; i < level.checkpoints.size(); i++) {
-            Level.Checkpoint c = level.checkpoints.get(i);
-
+            DuneLevel.Checkpoint c = level.checkpoints.get(i);
             if (!c.passed && car.x >= c.x) {
                 c.passed = true;
                 checkpointIndex = i;
@@ -166,11 +143,14 @@ public class GameView extends SurfaceView implements Runnable {
     }
 
     private void collectBonuses() {
-        for (Bonus b : level.bonuses) {
+        for (BonusItem b : level.bonuses) {
             if (b.taken) continue;
 
-            float d = carDistance(b.x, b.y);
-            if (d < 72 * car.scale()) {
+            float dx = b.x - car.x;
+            float dy = b.y - car.y;
+            float d = (float)Math.sqrt(dx * dx + dy * dy);
+
+            if (d < 85 * car.scaleFactor) {
                 b.taken = true;
                 applyBonus(b.type);
             }
@@ -180,63 +160,58 @@ public class GameView extends SurfaceView implements Runnable {
     private void applyBonus(int type) {
         long now = System.currentTimeMillis();
 
-        if (type == Bonus.STAR) {
+        if (type == BonusItem.STAR) {
             score += 10;
             starsCollected++;
             showBonus("+10");
             addStarParticles(car.x, car.y, 10);
-        } else if (type == Bonus.REPAIR) {
-            health = Math.min(10, health + 3);
-            showBonus("+3 CAN");
-        } else if (type == Bonus.BIG) {
-            car.bigUntil = now + 9000;
-            car.smallUntil = 0;
+        } else if (type == BonusItem.REPAIR) {
+            car.repairCar(30);
+            showBonus("+30 CAN");
+        } else if (type == BonusItem.BIG) {
+            car.makeBigCar();
+            bigUntil = now + 9000;
+            smallUntil = 0;
             showBonus("BÜYÜK ARABA");
-        } else if (type == Bonus.SMALL) {
-            car.smallUntil = now + 9000;
-            car.bigUntil = 0;
+        } else if (type == BonusItem.SMALL) {
+            car.makeSmallCar();
+            smallUntil = now + 9000;
+            bigUntil = 0;
             showBonus("KÜÇÜK ARABA");
-        } else if (type == Bonus.SLOW) {
-            car.slowUntil = now + 7000;
+        } else if (type == BonusItem.SLOW) {
+            slowUntil = now + 7000;
             showBonus("YAVAŞ ZAMAN");
-        } else if (type == Bonus.MINUS) {
+        } else if (type == BonusItem.MINUS) {
             score = Math.max(0, score - 25);
             showBonus("-25");
             addSparks(car.x, car.y, 14);
-        } else if (type == Bonus.WHEEL) {
-            car.wheelUntil = now + 8500;
-            showBonus("TEKER MODU");
         }
     }
 
     private void hitObstacles() {
         long now = System.currentTimeMillis();
 
-        for (Level.Obstacle o : level.obstacles) {
-            float d = carDistance(o.x, o.y);
-            if (d < (o.size + 45) * car.scale() && now - lastDamageTime > 700) {
-                damageCar(1, "-1 CAN");
+        for (DuneLevel.Obstacle o : level.obstacles) {
+            float dx = o.x - car.x;
+            float dy = o.y - car.y;
+            float d = (float)Math.sqrt(dx * dx + dy * dy);
+
+            if (d < (o.size + 55) * car.scaleFactor && now - lastDamageTime > 700) {
+                damageCar(10, "-10 CAN");
 
                 float kick = car.x < o.x ? -1 : 1;
-                car.backWheel.vel.x += kick * -8f;
-                car.frontWheel.vel.x += kick * -8f;
-                car.backWheel.vel.y = -8f;
-                car.frontWheel.vel.y = -8f;
-                car.angleVelocity += kick * 7f;
+                car.pWl.addVelocity(kick * -7f, -8f);
+                car.pWr.addVelocity(kick * -7f, -8f);
+                car.pLd.addVelocity(kick * -4f, -5f);
+                car.pRd.addVelocity(kick * -4f, -5f);
 
                 addSparks(o.x, o.y, 18);
             }
         }
     }
 
-    private float carDistance(float x, float y) {
-        float dx = x - car.x;
-        float dy = y - car.y;
-        return (float)Math.sqrt(dx * dx + dy * dy);
-    }
-
     private void damageCar(int damage, String text) {
-        health -= damage;
+        car.damageCar(damage);
         lastDamageTime = System.currentTimeMillis();
         showBonus(text);
     }
@@ -246,11 +221,11 @@ public class GameView extends SurfaceView implements Runnable {
         if (checkpointIndex >= 0 && checkpointIndex < level.checkpoints.size()) {
             x = Math.max(260, level.checkpoints.get(checkpointIndex).x - 220);
         }
-        car.reset(x, level);
+        car.init(x, level.getGroundY(x) - 95, engine);
     }
 
     private void updateParticles() {
-        Iterator<Particle> it = particles.iterator();
+        Iterator<DuneParticle> it = particles.iterator();
         while (it.hasNext()) {
             if (!it.next().update()) it.remove();
         }
@@ -264,12 +239,6 @@ public class GameView extends SurfaceView implements Runnable {
     private String getTimeText() {
         int left = getSecondsLeft();
         return String.format("%02d:%02d", left / 60, left % 60);
-    }
-
-    private float normalizeAngle(float a) {
-        while (a > 180) a -= 360;
-        while (a < -180) a += 360;
-        return a;
     }
 
     private void showBonus(String text) {
@@ -325,9 +294,7 @@ public class GameView extends SurfaceView implements Runnable {
         paint.setColor(Color.YELLOW);
         canvas.drawText("YILDIZ AVI", w / 2f, 195, paint);
 
-        if (car != null) {
-            car.draw(canvas, paint, car.x - w / 2f);
-        }
+        if (car != null) car.draw(canvas, paint, car.x - w / 2f);
 
         playBtn = new RectF(w / 2f - 190, h / 2f + 70, w / 2f + 190, h / 2f + 142);
         howBtn = new RectF(w / 2f - 190, h / 2f + 160, w / 2f + 190, h / 2f + 225);
@@ -357,7 +324,6 @@ public class GameView extends SurfaceView implements Runnable {
         canvas.drawText("Sol / Sağ: havada denge ve takla", w / 2f, 265, paint);
         canvas.drawText("Zıpla: rampada arabayı kaldır", w / 2f, 315, paint);
         canvas.drawText("Yıldız topla, bonusları kap, finish çizgisine ulaş.", w / 2f, 380, paint);
-        canvas.drawText("Takla: FLIP +100", w / 2f, 430, paint);
 
         backBtn = new RectF(w / 2f - 170, h - 125, w / 2f + 170, h - 60);
         drawMetalButton(canvas, backBtn, "GERİ", 34);
@@ -369,7 +335,7 @@ public class GameView extends SurfaceView implements Runnable {
         level.drawObjects(canvas, paint, camX);
         level.drawGround(canvas, paint, camX);
 
-        for (Particle p : particles) p.draw(canvas, paint, camX);
+        for (DuneParticle p : particles) p.draw(canvas, paint, camX);
 
         car.draw(canvas, paint, camX);
 
@@ -414,7 +380,7 @@ public class GameView extends SurfaceView implements Runnable {
         paint.setColor(Color.BLACK);
         canvas.drawRect(x, y, x + width, y + height, paint);
         paint.setColor(Color.RED);
-        canvas.drawRect(x + 3, y + 3, x + 3 + (width - 6) * Math.max(health, 0) / 10f, y + height - 3, paint);
+        canvas.drawRect(x + 3, y + 3, x + 3 + (width - 6) * Math.max(car.health, 0) / 100f, y + height - 3, paint);
     }
 
     private void drawProgressBar(Canvas canvas, int x, int y, int width, int height) {
@@ -571,23 +537,9 @@ public class GameView extends SurfaceView implements Runnable {
         return true;
     }
 
-    private void addDust(float x, float y, int count) {
-        for (int i = 0; i < count; i++) {
-            particles.add(new Particle(
-                    x + random.nextInt(60) - 30,
-                    y,
-                    random.nextFloat() * 4f - 2f,
-                    -random.nextFloat() * 3f,
-                    26 + random.nextInt(20),
-                    4 + random.nextFloat() * 5,
-                    Color.rgb(120, 90, 60)
-            ));
-        }
-    }
-
     private void addSparks(float x, float y, int count) {
         for (int i = 0; i < count; i++) {
-            particles.add(new Particle(
+            particles.add(new DuneParticle(
                     x,
                     y,
                     random.nextFloat() * 10f - 5f,
@@ -601,7 +553,7 @@ public class GameView extends SurfaceView implements Runnable {
 
     private void addStarParticles(float x, float y, int count) {
         for (int i = 0; i < count; i++) {
-            particles.add(new Particle(
+            particles.add(new DuneParticle(
                     x,
                     y,
                     random.nextFloat() * 6f - 3f,
