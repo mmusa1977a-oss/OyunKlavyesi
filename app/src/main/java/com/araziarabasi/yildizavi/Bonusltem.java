@@ -2,21 +2,20 @@ package com.araziarabasi.yildizavi;
 
 import android.graphics.*;
 
-public class Bonus {
+public class BonusItem {
     public static final int STAR = 1;
     public static final int REPAIR = 2;
     public static final int BIG = 3;
     public static final int SMALL = 4;
     public static final int SLOW = 5;
     public static final int MINUS = 6;
-    public static final int WHEEL = 7;
 
     public float x;
     public float y;
     public int type;
-    public boolean taken = false;
+    public boolean taken;
 
-    public Bonus(float x, float y, int type) {
+    public BonusItem(float x, float y, int type) {
         this.x = x;
         this.y = y;
         this.type = type;
@@ -24,7 +23,6 @@ public class Bonus {
 
     public void draw(Canvas canvas, Paint paint, float camX) {
         if (taken) return;
-
         float sx = x - camX;
         if (sx < -80 || sx > canvas.getWidth() + 80) return;
 
@@ -34,19 +32,16 @@ public class Bonus {
         }
 
         int color = Color.GREEN;
-        String text = "+";
-
-        if (type == REPAIR) { color = Color.GREEN; text = "+"; }
-        else if (type == BIG) { color = Color.MAGENTA; text = "B"; }
-        else if (type == SMALL) { color = Color.CYAN; text = "S"; }
-        else if (type == SLOW) { color = Color.BLUE; text = "T"; }
-        else if (type == MINUS) { color = Color.RED; text = "-"; }
-        else if (type == WHEEL) { color = Color.rgb(255, 145, 0); text = "W"; }
+        String t = "+";
+        if (type == REPAIR) { color = Color.GREEN; t = "+"; }
+        else if (type == BIG) { color = Color.MAGENTA; t = "B"; }
+        else if (type == SMALL) { color = Color.CYAN; t = "S"; }
+        else if (type == SLOW) { color = Color.BLUE; t = "T"; }
+        else if (type == MINUS) { color = Color.RED; t = "-"; }
 
         paint.setStyle(Paint.Style.FILL);
         paint.setColor(Color.BLACK);
         canvas.drawCircle(sx + 3, y + 3, 25, paint);
-
         paint.setColor(color);
         canvas.drawCircle(sx, y, 25, paint);
 
@@ -54,7 +49,7 @@ public class Bonus {
         paint.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.BOLD));
         paint.setTextAlign(Paint.Align.CENTER);
         paint.setTextSize(28);
-        canvas.drawText(text, sx, y + 10, paint);
+        canvas.drawText(t, sx, y + 10, paint);
         paint.setTextAlign(Paint.Align.LEFT);
     }
 
