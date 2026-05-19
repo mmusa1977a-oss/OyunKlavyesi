@@ -60,18 +60,32 @@ public class GameView extends SurfaceView implements Runnable {
 
     private void resetLevel(int newLevel) {
         levelNo = Math.max(1, newLevel);
+
+        if (levelNo > DuneGroundData.maxLevel()) {
+            levelNo = 1;
+        }
+
         level = new DuneLevel(levelNo);
         engine = new CParticleEngine();
         car = new CCarSynchronizer();
-        car.init(260, level.getGroundY(260) - 95, engine);
+
+        float startX = level.startX;
+        float startY = level.getGroundY(startX) - 95f;
+        car.init(startX, startY, engine);
 
         score = 0;
         starsCollected = 0;
         checkpointIndex = 0;
+
         gas = brake = left = right = jump = false;
-        camX = 0;
-        camTargetX = 0;
-        bigUntil = smallUntil = slowUntil = 0;
+
+        camX = Math.max(0, startX - 250f);
+        camTargetX = camX;
+
+        bigUntil = 0;
+        smallUntil = 0;
+        slowUntil = 0;
+
         bonusText = "";
         particles.clear();
 
@@ -92,7 +106,9 @@ public class GameView extends SurfaceView implements Runnable {
 
         long now = System.currentTimeMillis();
 
-        if (now > bigUntil && now > smallUntil) car.makeNormalCar();
+        if (now > bigUntil && now > smallUntil) {
+            car.makeNormalCar();
+        }
 
         engine.timeMultiplier = now < slowUntil ? 0.68f : 1f;
         engine.process(level, gas, brake, jump);
@@ -126,6 +142,7 @@ public class GameView extends SurfaceView implements Runnable {
     private void updateCheckpointAndFinish() {
         for (int i = 0; i < level.checkpoints.size(); i++) {
             DuneLevel.Checkpoint c = level.checkpoints.get(i);
+
             if (!c.passed && car.x >= c.x) {
                 c.passed = true;
                 checkpointIndex = i;
@@ -148,7 +165,7 @@ public class GameView extends SurfaceView implements Runnable {
 
             float dx = b.x - car.x;
             float dy = b.y - car.y;
-            float d = (float)Math.sqrt(dx * dx + dy * dy);
+            float d = (float) Math.sqrt(dx * dx + dy * dy);
 
             if (d < 85 * car.scaleFactor) {
                 b.taken = true;
@@ -194,12 +211,13 @@ public class GameView extends SurfaceView implements Runnable {
         for (DuneLevel.Obstacle o : level.obstacles) {
             float dx = o.x - car.x;
             float dy = o.y - car.y;
-            float d = (float)Math.sqrt(dx * dx + dy * dy);
+            float d = (float) Math.sqrt(dx * dx + dy * dy);
 
             if (d < (o.size + 55) * car.scaleFactor && now - lastDamageTime > 700) {
                 damageCar(10, "-10 CAN");
 
                 float kick = car.x < o.x ? -1 : 1;
+
                 car.pWl.addVelocity(kick * -7f, -8f);
                 car.pWr.addVelocity(kick * -7f, -8f);
                 car.pLd.addVelocity(kick * -4f, -5f);
@@ -217,22 +235,27 @@ public class GameView extends SurfaceView implements Runnable {
     }
 
     private void respawnAtCheckpoint() {
-        float x = 260;
+        float x = level.startX;
+
         if (checkpointIndex >= 0 && checkpointIndex < level.checkpoints.size()) {
-            x = Math.max(260, level.checkpoints.get(checkpointIndex).x - 220);
+            x = Math.max(level.startX, level.checkpoints.get(checkpointIndex).x - 220f);
         }
-        car.init(x, level.getGroundY(x) - 95, engine);
+
+        car.init(x, level.getGroundY(x) - 95f, engine);
     }
 
     private void updateParticles() {
         Iterator<DuneParticle> it = particles.iterator();
+
         while (it.hasNext()) {
-            if (!it.next().update()) it.remove();
+            if (!it.next().update()) {
+                it.remove();
+            }
         }
     }
 
     private int getSecondsLeft() {
-        int elapsed = (int)((System.currentTimeMillis() - levelStartTime) / 1000);
+        int elapsed = (int) ((System.currentTimeMillis() - levelStartTime) / 1000);
         return Math.max(level.timeSeconds - elapsed, 0);
     }
 
@@ -255,9 +278,11 @@ public class GameView extends SurfaceView implements Runnable {
         int w = canvas.getWidth();
         int h = canvas.getHeight();
 
-        if (gameState == STATE_MENU) drawMenu(canvas, w, h);
-        else if (gameState == STATE_HOW) drawHow(canvas, w, h);
-        else {
+        if (gameState == STATE_MENU) {
+            drawMenu(canvas, w, h);
+        } else if (gameState == STATE_HOW) {
+            drawHow(canvas, w, h);
+        } else {
             drawPlaying(canvas, w, h);
 
             if (gameState == STATE_GAME_OVER) {
@@ -294,7 +319,9 @@ public class GameView extends SurfaceView implements Runnable {
         paint.setColor(Color.YELLOW);
         canvas.drawText("YILDIZ AVI", w / 2f, 195, paint);
 
-        if (car != null) car.draw(canvas, paint, car.x - w / 2f);
+        if (car != null) {
+            car.draw(canvas, paint, car.x - w / 2f);
+        }
 
         playBtn = new RectF(w / 2f - 190, h / 2f + 70, w / 2f + 190, h / 2f + 142);
         howBtn = new RectF(w / 2f - 190, h / 2f + 160, w / 2f + 190, h / 2f + 225);
@@ -327,6 +354,7 @@ public class GameView extends SurfaceView implements Runnable {
 
         backBtn = new RectF(w / 2f - 170, h - 125, w / 2f + 170, h - 60);
         drawMetalButton(canvas, backBtn, "GERİ", 34);
+
         paint.setTextAlign(Paint.Align.LEFT);
     }
 
@@ -335,7 +363,9 @@ public class GameView extends SurfaceView implements Runnable {
         level.drawObjects(canvas, paint, camX);
         level.drawGround(canvas, paint, camX);
 
-        for (DuneParticle p : particles) p.draw(canvas, paint, camX);
+        for (DuneParticle p : particles) {
+            p.draw(canvas, paint, camX);
+        }
 
         car.draw(canvas, paint, camX);
 
@@ -347,6 +377,7 @@ public class GameView extends SurfaceView implements Runnable {
 
     private void drawHud(Canvas canvas, int w) {
         int y = 18;
+
         drawHudBox(canvas, 15, y, 210, 50, "TIME", getTimeText());
         drawHudBox(canvas, 240, y, 300, 50, "HEALTH", "");
         drawHealthBar(canvas, 355, y + 15, 150, 20);
@@ -379,16 +410,34 @@ public class GameView extends SurfaceView implements Runnable {
     private void drawHealthBar(Canvas canvas, int x, int y, int width, int height) {
         paint.setColor(Color.BLACK);
         canvas.drawRect(x, y, x + width, y + height, paint);
+
         paint.setColor(Color.RED);
-        canvas.drawRect(x + 3, y + 3, x + 3 + (width - 6) * Math.max(car.health, 0) / 100f, y + height - 3, paint);
+        canvas.drawRect(
+                x + 3,
+                y + 3,
+                x + 3 + (width - 6) * Math.max(car.health, 0) / 100f,
+                y + height - 3,
+                paint
+        );
     }
 
     private void drawProgressBar(Canvas canvas, int x, int y, int width, int height) {
         paint.setColor(Color.BLACK);
         canvas.drawRect(x, y, x + width, y + height, paint);
+
         paint.setColor(Color.rgb(0, 180, 220));
-        float progress = Math.min(car.x / level.length, 1f);
-        canvas.drawRect(x + 3, y + 3, x + 3 + (width - 6) * progress, y + height - 3, paint);
+
+        float progress = (car.x - level.startX) / level.length;
+        if (progress < 0f) progress = 0f;
+        if (progress > 1f) progress = 1f;
+
+        canvas.drawRect(
+                x + 3,
+                y + 3,
+                x + 3 + (width - 6) * progress,
+                y + height - 3,
+                paint
+        );
     }
 
     private void drawStartText(Canvas canvas) {
@@ -400,6 +449,7 @@ public class GameView extends SurfaceView implements Runnable {
         paint.setColor(Color.WHITE);
         paint.setTextSize(70);
         canvas.drawText("START", 45, 160, paint);
+
         paint.setTextSize(48);
         canvas.drawText("LEVEL " + levelNo, 80, 215, paint);
     }
@@ -494,7 +544,11 @@ public class GameView extends SurfaceView implements Runnable {
         if (gameState == STATE_HOW && action == MotionEvent.ACTION_DOWN) {
             float x = event.getX();
             float y = event.getY();
-            if (backBtn != null && backBtn.contains(x, y)) gameState = STATE_MENU;
+
+            if (backBtn != null && backBtn.contains(x, y)) {
+                gameState = STATE_MENU;
+            }
+
             return true;
         }
 
@@ -573,6 +627,7 @@ public class GameView extends SurfaceView implements Runnable {
 
     public void pause() {
         running = false;
+
         try {
             if (thread != null) thread.join();
         } catch (InterruptedException ignored) {}
@@ -580,6 +635,7 @@ public class GameView extends SurfaceView implements Runnable {
 
     public void resume() {
         if (running) return;
+
         running = true;
         thread = new Thread(this);
         thread.start();
